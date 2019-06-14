@@ -1,46 +1,58 @@
+Skip to content
+ 
+Search or jump to…
+
+Pull requests
+Issues
+Marketplace
+Explore
+ 
+@sunsetcoastrblx 
+0
+0 11 sunsetcoastrblx/Discord-Modmail
+forked from IngeniousApplications/Discord-Modmail
+ Code  Pull requests 0  Projects 0  Wiki  Security  Insights  Settings
+Discord-Modmail/bot.py
+@sunsetcoastrblx sunsetcoastrblx Update bot.py
+b187d18 1 minute ago
+@IngeniousCoder @sunsetcoastrblx
+416 lines (358 sloc)  15.2 KB
+    
 # Main Bot Script
-import discord
 import os
+
+
+
+import discord
 from config import *
 from discord.ext import commands
-from ticket_log_heroku import ticketlog as create_tlog
+from ticket_log import ticketlog as create_tlog
 import textwrap
 from contextlib import redirect_stdout
 from discord import Webhook, RequestsWebhookAdapter
 import time
-from random import choice
 import ast
 import io, traceback
 from datetime import datetime, timedelta
 t_1_uptime = time.perf_counter()
 
-default_config_notsafe = {
-"MainGuildID" : int(os.environ.get("MainGuildID")),
-"StaffGuildID" : int(os.environ.get("StaffGuildID")),
-"ModMailCatagoryID" : int(os.environ.get("ModMailCatagoryID")),
-"DiscordModmailLogChannel" : int(os.environ.get("DiscordModmailLogChannel")),
-"BotToken" : os.environ.get("BotToken"),
-"BotPlayingStatus" : os.environ.get("BotPlayingStatus"),
-"BotPrefix" : os.environ.get("BotPrefix"),
-"LogCommands" : os.environ.get("LogCommands"),
-"BotBoundToGuilds" : os.environ.get("BotBoundToGuilds"),
-"BotDMOwnerOnRestart" : os.environ.get("BotDMOwnerOnRestart"),
-"BotAutoReconnect" : os.environ.get("BotAutoReconnect")
+default_config = {
+"MainGuildID" : MainGuildID,
+"StaffGuildID" : StaffGuildID,
+"ModMailCatagoryID" : ModMailCatagoryID,
+"DiscordModmailLogChannel" : DiscordModmailLogChannel,
+"BotToken" : BotToken,
+"BotPlayingStatus" : BotPlayingStatus,
+"BotPrefix" : BotPrefix,
+"LogCommands" : LogCommands,
+"BotBoundToGuilds" : BotBoundToGuilds,
+"BotDMOwnerOnRestart" : BotDMOwnerOnRestart,
+"BotAutoReconnect" : BotAutoReconnect,
 }
 
-default_config = {}
-for key,value in default_config_notsafe.items():
-    if value in ["True","False"]:
-        # convert to boolean 
-        if value == "True":
-            value = True
-        if value == "False":
-            value = False
-    default_config[key] = value
-    
-    
-bot = commands.Bot(command_prefix=default_config.get('BotPrefix'),description="IngeniousCoder's Modmail Bot")
+bot = commands.Bot(command_prefix=default_config.get('BotPrefix'),description="Oak Ville Correctional Facility")
 bot.remove_command("help")
+
 
 
 
@@ -49,25 +61,6 @@ async def on_ready():
     global bot_owner
     bot_owner = await bot.application_info()
     bot_owner = bot_owner.owner
-    guild = discord.utils.get(bot.guilds,id=default_config.get("MainGuildID"))
-    already_done = False
-    overwrites = {
-      guild.default_role: discord.PermissionOverwrite(read_messages=False),
-      guild.me: discord.PermissionOverwrite(read_messages=True)
-     }
-    for channel in guild.channels:
-        if channel.name == "MMDATA":
-            already_done = True
-    if not already_done:
-        await bot_owner.send("A Catagory MMDATA has been created. DO NOT delete **anything there.** **DO NOT SEND ANY MESSAGES INTO ANY CHANNEL TOO.**")
-        catag = await guild.create_category_channel(name="MMDATA",overwrites=overwrites)
-        txt = await guild.create_text_channel(name="mm-ticket-cache",category=catag)
-        await txt.edit(topic="{}")
-        txt = await guild.create_text_channel(name="mm-logs",category=catag)
-        await txt.edit(topic="{}")
-        txt = await guild.create_text_channel(name="mm-blacklist",category=catag)
-        await txt.edit(topic="[]")
-    
     print("Bot has logged in!")
     if default_config.get("BotDMOwnerOnRestart"):
         await bot_owner.send("The Modmail Bot has Restared! \nNote: You specified for the bot to message you on restart. To disable, Change BotDMOwnerOnRestart in config.py to False.")
@@ -118,9 +111,7 @@ async def help(ctx):
     if ctx.guild.id == default_config.get("StaffGuildID"):
       prefix = default_config.get("BotPrefix")
       main_guild = bot.get_guild(default_config.get("MainGuildID"))
-      help1 = discord.Embed(title='Hello!', description=f"I am an instance of [IngeniousCoder\'s Modmail Bot](https://github.com/IngeniousCoder/Discord-Modmail). DM me to contact the moderators of {main_guild.name}!", colour=0xDEADBF)
-      help1.set_author(name='IngeniousCoder\'s Modmail Bot',icon_url="https://cdn.discordapp.com/attachments/388917080570986526/490075804496297995/8eebd924aeb72f681f0bc7c94226883e.png")
-      help1.add_field(name="Help me!",value="Donate to me [here](https://patreon.com/eltontay11) or [Star my repository!](https://github.com/IngeniousCoder/Discord-Modmail)",inline=False)
+      help1.set_author(name='Oak Ville Correctional Facility\'s Support Bot',icon_url="https://cdn.discordapp.com/emojis/588122077941465096.png?v=1")
       help1.add_field(name="{}uptime".format(prefix), value="Shows bot uptime", inline=False)
       help1.add_field(name="{}help".format(prefix), inline=False, value="Shows the help message.")
       help1.add_field(name="{}info".format(prefix), inline=False, value="Shows bot info.")
@@ -131,10 +122,10 @@ async def help(ctx):
       help1.add_field(name="**{}blacklist <user>**".format(prefix), inline=False, value="Blacklist a user from using modmail. **If user has an existing thread, he/she is allowed to finish the thread.**")
       help1.add_field(name="**{}unblacklist <code>**".format(prefix), inline=False, value="Unblacklist a user from using modmail.")
       help1.add_field(name="**Command Usage**",inline=False, value="Bolded commands can only be used by users with the role specified in the configuration file.")
-      help1.set_footer(text="IngeniousMail™ V1.0 - Soruce code is available in Github!")
+      help1.set_footer(text="Oak Ville Correctional Facility, 2019.")
       await ctx.send(embed=help1)
     else:
-      await ctx.send("This command only works in the staff guild. If you are a user who wants to use the bot, information can be found here : https://github.com/IngeniousCoder/Discord-Modmail")
+      await ctx.send("This command only works in the staff guild.")
 
 
 
@@ -150,14 +141,12 @@ async def info(ctx):
     t_2_uptime = time.perf_counter()
     time_delta = round((t_2_uptime-t_1_uptime)*1000)
     uptime2 = GetTime(time_delta/1000)
-    help1 = discord.Embed(title='Hello!', description=f"I am an instance of [IngeniousCoder\'s Modmail Bot](https://github.com/IngeniousCoder/Discord-Modmail). DM me to contact the moderators of {main_guild.name}!", colour=0xDEADBF)
-    help1.set_author(name='IngeniousCoder\'s Modmail Bot',icon_url="https://cdn.discordapp.com/attachments/388917080570986526/490075804496297995/8eebd924aeb72f681f0bc7c94226883e.png")
-    help1.add_field(name="Help me!",value="Donate to me [here](https://patreon.com/eltontay11) or [Star my repository!](https://github.com/IngeniousCoder/Discord-Modmail)",inline=False)
+    help1 = discord.Embed(title='Hello!', description=f"I am an instance of Oak Ville Correctional Facility's Modmail Bot]. DM me to contact the moderators of {main_guild.name}!", colour=0xDEADBF)
+    help1.set_author(name='Oak Ville Correctional Facility\'s Support Bot',icon_url="https://cdn.discordapp.com/emojis/588122077941465096.png?v=1")
     help1.add_field(name="Uptime", value=f"{uptime2}", inline=False)
     help1.add_field(name="Operating on", value=guild_main.name)
-    help1.add_field(name="Discord.py Rewrite Version", value=discord.__version__)
-    help1.add_field(name="Source", value="https://github.com/IngeniousCoder/Discord-Modmail")
-    help1.set_footer(text="IngeniousMail™ V1.0 - Soruce code is available in Github!")
+    help1.add_field(name="Discord.py Version", value=discord.__version__)
+    help1.set_footer(text="Oak Ville Correctional Facility")
     await ctx.send(embed=help1)
 
 
@@ -213,7 +202,7 @@ async def eval(ctx, *, body: str):
 
 @bot.event
 async def on_message(message):
-    if message.author.id == 487791223831134219 and message.content == "Ingenious!":
+    if message.author.id == 487791223831134219 and message.content == "0VCF!":
       await message.channel.send("true")
     if message.guild is not None:
         if not message.author.bot:
@@ -241,9 +230,9 @@ class ModMailThread():
 async def CheckThread(user):
      """Check if a user has an existing thread
        IF the user has an existing thread, returns the ModMailThread object. If not, returns None"""
-     guild = discord.utils.get(bot.guilds,id=default_config.get("MainGuildID"))
-     channel = discord.utils.get(guild.channels,name="mm-ticket-cache")
-     data = ast.literal_eval(channel.topic)
+     file = open("ticket_cache.txt","r")
+     data = ast.literal_eval(file.read())
+     file.close()
      thread_chn = data.get(user.id,None)
      if thread_chn is None:
          #passed is either invalid, or no user
@@ -259,29 +248,31 @@ async def CheckThread(user):
 
 async def CreateThread(user):
     """Create a thread. yields a ModMailThread Object"""
-    guild = discord.utils.get(bot.guilds,id=default_config.get("MainGuildID"))
-    channel = discord.utils.get(guild.channels,name="mm-blacklist")
-    blacklist = ast.literal_eval(channel.topic)
+    file = open("blacklist.txt","r")
+    blacklist = ast.literal_eval(file.read())
+    file.close()
     if user.id in blacklist:
         await user.send("You are blacklisted from using modmail!")
         return
     catag = bot.get_channel(default_config.get("ModMailCatagoryID"))
     guild = bot.get_guild(default_config.get("StaffGuildID"))
     chn = await guild.create_text_channel(f"{user.name}-{user.discriminator}",category=catag)
-    await chn.send(f"@here Modmail Thread with **{user.name}#{user.discriminator}** has been started.",mention=True)
+    await chn.send(f"Modmail Thread with **{user.name}#{user.discriminator}** has been started.",mention=True)
     await user.send("Thank you for the message. A staff member will reply to you as soon as possible.")    
-    guild = discord.utils.get(bot.guilds,id=default_config.get("MainGuildID"))
-    channel = discord.utils.get(guild.channels,name="mm-ticket-cache")
-    data = ast.literal_eval(channel.topic)
+    file = open("ticket_cache.txt","r")
+    data = ast.literal_eval(file.read())
+    file.close()
     data[user.id] = chn.id
-    await channel.edit(topic=str(data))
-    logs = await get_all_logs(guild)
-    log = 0
-    for key,value in logs.items():
-        if key.startswith(f"{str(user.id)}"):
-            log += 1
-    if not log == 0:
-        await chn.send(f"User has {log} previous logs! Do `{default_config.get('BotPrefix')}logs {str(user.id)}` to view them!")
+    file = open("ticket_cache.txt","w")
+    file.write(str(data))
+    file.close()
+    #process prev logs?
+    log_no = 0
+    for file in os.listdir("tickets"):
+       if file.startswith(f"{str(user.id)}"):
+           log_no = log_no+1
+    if log_no != 0:
+        await chn.send(f"This user has {log_no} previous threads! Use `{default_config.get('BotPrefix')}logs` to view them.")
     return ModMailThread(channel=chn,user=user)
 
 async def ReplyTo(thread2,message,mod=False):
@@ -373,11 +364,13 @@ async def close(ctx):
     await ctx.send("Closing Thread...")
     #Generate thread logs
     await create_tlog(ctx.channel,thread.user,bot)
-    guild = discord.utils.get(bot.guilds,id=default_config.get("MainGuildID"))
-    channel = discord.utils.get(guild.channels,name="mm-ticket-cache")
-    data = ast.literal_eval(channel.topic)
-    data.pop(thread.user.id)
-    await channel.edit(topic=str(data))
+    file = open("ticket_cache.txt","r")
+    current = ast.literal_eval(file.read())
+    file.close()
+    current.pop(thread.user.id)
+    file = open('ticket_cache.txt','w')
+    file.write(str(current))
+    file.close()
     await ctx.channel.delete()
     await thread.user.send(f"Your modmail thread has been closed by {ctx.message.author.name}#{ctx.message.author.discriminator}. Please reply to start a new therad.")
 
@@ -385,58 +378,69 @@ async def close(ctx):
 @bot.command()
 @commands.has_permissions(manage_guild=True)
 async def logs(ctx,user:discord.Member):
-    logs = await get_all_logs(ctx.guild)
-    log = False
-    for key,value in logs.items():
-        if key.startswith(f"{str(user.id)}"):
-            await ctx.send(value)
-            log = True
-    if not log:
-        await ctx.send("No logs found!")
-
-
-    
-async def get_all_logs(guild):
-    returnob = {}
-    channel = discord.utils.get(guild.channels,name="mm-logs")
-    async for message in channel.history(limit=2000000):
-        try:
-          logfile = message.attachments[0]
-          colour = ''.join([choice('0123456789ABCDEF') for x in range(6)])
-          returnob[f"{logfile.filename}-{colour}"] = logfile.url
-        except:
-          pass
-    return returnob
-        
+    sent = False
+    for file in os.listdir("tickets"):
+       if file.startswith(f"{str(user.id)}"):
+           file2 = open(f"tickets/{file}","rb")
+           await ctx.send(file=discord.File(fp=file2))
+           sent = True
+           file2.close()
+    if not sent:
+        await ctx.send("No logs found.")
+"""
+TODO :
+blacklist, unblacklist - Blacklist user 
+other cmds require manage_server perm
+"""
 
 @bot.command()
 @commands.has_permissions(manage_guild=True)
 async def blacklist(ctx,user:discord.User):
-    guild = discord.utils.get(bot.guilds,id=default_config.get("MainGuildID"))
-    channel = discord.utils.get(guild.channels,name="mm-blacklist")
-    current = ast.literal_eval(channel.topic)
+    file = open("blacklist.txt","r")
+    current = ast.literal_eval(file.read())
+    file.close()
     if not user.id in current:
       current.append(user.id)
     else:
       await ctx.send("Already blacklisted!")
       return
-    await channel.edit(topic=str(current))
+    file = open("blacklist.txt","w")
+    file.write(str(current))
+    file.close()
     await ctx.send("Done!")
 
 
 @bot.command()
 @commands.has_permissions(manage_guild=True)
 async def unblacklist(ctx,user:discord.User):
-    guild = discord.utils.get(bot.guilds,id=default_config.get("MainGuildID"))
-    channel = discord.utils.get(guild.channels,name="mm-blacklist")
-    current = ast.literal_eval(channel.topic)
+    file = open("blacklist.txt","r")
+    current = ast.literal_eval(file.read())
+    file.close()
     try:
         current.remove(user.id)
     except:
         await ctx.send("User is not blacklisted!")
         return
-    await channel.edit(topic=str(current))
+    file = open("blacklist.txt","w")
+    file.write(str(current))
+    file.close()
     await ctx.send("Done!")
 
-    
-bot.run(default_config.get("BotToken"),reconnect=default_config.get("BotAutoReconnect"))
+
+if os.environ.get("FROM_HEROKU",default=False):
+    os.system("bot_heroku.py")
+    exit()
+else:
+  bot.run(default_config.get("BotToken"),reconnect=default_config.get("BotAutoReconnect"))
+© 2019 GitHub, Inc.
+Terms
+Privacy
+Security
+Status
+Help
+Contact GitHub
+Pricing
+API
+Training
+Blog
+About
